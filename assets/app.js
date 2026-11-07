@@ -155,9 +155,9 @@
   function makeMap(el) {
     if (typeof L === 'undefined') { el.innerHTML = '<div class="empty">The map could not load.</div>'; return null; }
     const map = L.map(el, { worldCopyJump: true, scrollWheelZoom: false, minZoom: 2 }).setView([18, 70], 3);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 12, subdomains: 'abcd',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     maps.push(map);
     return map;
@@ -439,6 +439,12 @@
     if (map) {
       const bounds = drawShipment(map, s, t, true);
       if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6, animate: false });
+      // Re-measure once the shipment view is laid out, so the map isn't clipped after a route change.
+      requestAnimationFrame(() => {
+        if (!maps.includes(map)) return;
+        map.invalidateSize({ animate: false });
+        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6, animate: false });
+      });
     }
 
     document.getElementById('refresh').addEventListener('click', (e) => busy(e.currentTarget, async () => {
