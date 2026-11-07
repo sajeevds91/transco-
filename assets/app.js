@@ -144,46 +144,197 @@
   }
 
   // ---------------------------------------------------------------- map
-  function vesselIcon(course, moving) {
-    const color = moving ? '#1d4ed8' : '#b45309';
-    const svg = moving
-      ? `<svg width="26" height="26" viewBox="0 0 26 26" style="transform:rotate(${course || 0}deg)"><path d="M13 2l7 20-7-4-7 4z" fill="${color}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`
-      : `<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
-    const size = moving ? 26 : 20;
-    return L.divIcon({ className: 'vessel-icon', html: svg, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+  // A clean map drawn from Natural Earth country outlines hosted with the site (no tile server, no
+  // API key), with OpenStreetMap available as a "Street map" layer for zooming into ports.
+  const MAP_COLORS = { transit: '#1d4ed8', port: '#d97706', done: '#15803d', pre: '#0f8f84', unknown: '#64748b' };
+  const statusColor = (t) => MAP_COLORS[(STATUS_CLASS[t.status] || 's-unknown').slice(2)] || MAP_COLORS.unknown;
+
+  let worldPromise = null;
+  function loadWorld() {
+    if (!worldPromise) {
+      worldPromise = fetch('assets/world-50m.json')
+        .then((r) => { if (!r.ok) throw new Error('map data'); return r.json(); })
+        .then((topo) => {
+          const geo = topojson.feature(topo, topo.objects.countries);
+          // Keep rings continuous where they cross the 180° line, so no stray lines are drawn across the map.
+          const unwrap = (ring) => {
+            let prev = null;
+            let shift = 0;
+            return ring.map(([lon, lat]) => {
+              if (prev !== null) {
+                if (lon + shift - prev > 180) shift -= 360;
+                else if (lon + shift - prev < -180) shift += 360;
+              }
+              prev = lon + shift;
+              return [lon + shift, lat];
+            });
+          };
+          geo.features = geo.features
+            .filter((f) => f.id !== '010') // Antarctica
+            .map((f) => {
+              const g = f.geometry;
+              if (g.type === 'Polygon') g.coordinates = g.coordinates.map(unwrap);
+              if (g.type === 'MultiPolygon') g.coordinates = g.coordinates.map((poly) => poly.map(unwrap));
+              return f;
+            });
+          return geo;
+        })
+        .catch((err) => { worldPromise = null; throw err; });
+    }
+    return worldPromise;
   }
+
+  function graticule() {
+    const lines = [];
+    for (let lat = -60; lat <= 80; lat += 20) lines.push([[lat, -180], [lat, 180]]);
+    for (let lon = -180; lon <= 180; lon += 30) lines.push([[-75, lon], [85, lon]]);
+    return L.polyline(lines, { color: '#ffffff', weight: 1, opacity: 0.45, interactive: false, pane: 'grid' });
+  }
+
   function makeMap(el) {
     if (typeof L === 'undefined') { el.innerHTML = '<div class="empty">The map could not load.</div>'; return null; }
-    const map = L.map(el, { worldCopyJump: true, scrollWheelZoom: false, minZoom: 2 }).setView([18, 70], 3);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    el.classList.add('map-clean');
+    const map = L.map(el, {
+      scrollWheelZoom: false, minZoom: el.clientWidth < 600 ? 1 : 2, maxZoom: 10, zoomSnap: 0.25, worldCopyJump: false,
+      maxBounds: [[-75, -220], [85, 220]], maxBoundsViscosity: 0.8, attributionControl: true,
+    }).setView([18, 70], 3);
+    map.attributionControl.setPrefix(false);
+    map.createPane('land').style.zIndex = 200;
+    map.createPane('grid').style.zIndex = 250;
+    map.createPane('routes').style.zIndex = 420;
+
+    const clean = L.layerGroup().addTo(map);
+    graticule().addTo(clean);
+    const landRenderer = L.canvas({ pane: 'land', padding: 0.3 });
+    loadWorld().then((geo) => {
+      if (!maps.includes(map)) return;
+      L.geoJSON(geo, {
+        renderer: landRenderer, interactive: false,
+        style: { color: '#c9c4b5', weight: 0.7, fillColor: '#f6f3ea', fillOpacity: 1 },
+      }).addTo(clean);
+    }).catch(() => { if (maps.includes(map)) map.addLayer(street); });
+
+    const street = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
+    });
+    clean.getAttribution = () => 'Map data: <a href="https://www.naturalearthdata.com/">Natural Earth</a>';
+    map.attributionControl.addAttribution(clean.getAttribution());
+    map.on('baselayerchange', (e) => {
+      el.classList.toggle('map-clean', e.layer === clean);
+      map.attributionControl[e.layer === clean ? 'addAttribution' : 'removeAttribution'](clean.getAttribution());
+    });
+    L.control.layers({ Map: clean, 'Street map': street }, null, { position: 'topright' }).addTo(map);
     maps.push(map);
     return map;
   }
+
+  function vesselIcon(course, moving, color) {
+    const html = moving
+      ? `<span class="vessel-halo" style="--c:${color}"></span><svg width="30" height="30" viewBox="0 0 30 30" style="transform:rotate(${course || 0}deg)"><path d="M15 3l7.5 21L15 19.5 7.5 24z" fill="${color}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`
+      : `<svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="8" fill="${color}" stroke="#fff" stroke-width="2.5"/><path d="M7 12.5h8l-1.4 2.5H8.4zM9 9.5h4v2.4H9z" fill="#fff"/></svg>`;
+    const size = moving ? 30 : 22;
+    return L.divIcon({ className: 'vessel-icon', html, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -size / 2] });
+  }
+
+  function portMarker(port, kind, color, label, side = kind === 'origin' ? 'left' : 'right') {
+    const style = {
+      origin: { radius: 6, color: '#fff', weight: 2.5, fillColor: '#0f2b46', fillOpacity: 1 },
+      destination: { radius: 7, color, weight: 3, fillColor: '#fff', fillOpacity: 1 },
+      via: { radius: 5, color: '#fff', weight: 2, fillColor: MAP_COLORS.port, fillOpacity: 1 },
+    }[kind];
+    const m = L.circleMarker([port.lat, port.lon], { ...style, pane: 'markerPane' });
+    const name = esc(port.name.split(',')[0]);
+    if (label) {
+      m.bindTooltip(name, { permanent: true, direction: side, offset: [side === 'left' ? -8 : 8, 0], className: 'port-label' });
+      m.portLabel = { name, side };
+    }
+    else m.bindTooltip(esc(port.name), { direction: 'top', offset: [0, -6] });
+    return m;
+  }
+
+  // Splits a route at the vessel's position into the part already sailed and the part still to go.
+  function splitRoute(route, p) {
+    if (!p || p.lat == null) return [route, []];
+    let best = 0;
+    let bestD = Infinity;
+    route.forEach(([la, lo], i) => {
+      const d = (la - p.lat) ** 2 + (lo - p.lon) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    const here = [p.lat, p.lon];
+    return [[...route.slice(0, best + 1), here], [here, ...route.slice(best + 1)]];
+  }
+
   function drawShipment(map, s, t, focus = false) {
     const bounds = [];
-    const color = t.status === 'IN_TRANSIT' ? '#1d4ed8' : isDone(t) ? '#15803d' : '#0f8f84';
+    const color = statusColor(t);
+    const p = t.vesselPosition;
+    // Only show the ship once the cargo is on board and under way (or waiting at a transshipment port).
+    const atSea = p?.lat != null && ['IN_TRANSIT', 'TRANSSHIPMENT'].includes(t.status);
     if (t.route?.length) {
-      L.polyline(t.route, { color, weight: focus ? 3 : 2, opacity: focus ? 0.8 : 0.45, dashArray: focus ? null : '6 6' }).addTo(map);
+      const [done, ahead] = isDone(t) ? [t.route, []] : atSea ? splitRoute(t.route, p) : [[], t.route];
+      if (done.length) L.polyline(done, { pane: 'routes', color, weight: focus ? 4 : 3, opacity: focus ? 0.95 : 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+      if (ahead.length) L.polyline(ahead, { pane: 'routes', color, weight: focus ? 3 : 2, opacity: focus ? 0.55 : 0.4, dashArray: '2 7', lineCap: 'round' }).addTo(map);
       if (focus) bounds.push(...t.route);
     }
-    for (const port of [t.origin, t.destination, ...(t.transshipment || [])]) {
+    const ports = [[t.origin, 'origin'], [t.destination, 'destination'], ...(t.transshipment || []).map((x) => [x, 'via'])];
+    // Put each port's name on the side facing away from the other end of the route.
+    const westToEast = t.origin?.lon != null && t.destination?.lon != null ? t.origin.lon <= t.destination.lon : true;
+    for (const [port, kind] of ports) {
       if (port?.lat == null) continue;
-      L.circleMarker([port.lat, port.lon], { radius: 5, color: '#0f2b46', weight: 2, fillColor: '#fff', fillOpacity: 1 }).bindTooltip(esc(port.name), { direction: 'top' }).addTo(map);
+      const side = kind === 'origin' ? (westToEast ? 'left' : 'right') : (westToEast ? 'right' : 'left');
+      portMarker(port, kind, color, focus && kind !== 'via', side).addTo(map);
       bounds.push([port.lat, port.lon]);
     }
-    const p = t.vesselPosition;
-    if (p?.lat != null && !isDone(t)) {
-      L.marker([p.lat, p.lon], { icon: vesselIcon(p.course, (p.speed || 0) > 0.5), zIndexOffset: 500 })
+    if (atSea) {
+      L.marker([p.lat, p.lon], { icon: vesselIcon(p.course, (p.speed || 0) > 0.5, color), zIndexOffset: 500 })
         .bindPopup(`<div class="map-pop"><b>${esc(s.label || s.reference)}</b><span>${esc(t.vessel?.name || 'Vessel')}${p.speed != null ? ` · ${p.speed.toFixed(1)} kn` : ''}</span><br>
           <span>${esc(t.statusLabel)} · ETA ${fmtDate(t.eta)}</span><br><a href="#/shipment/${encodeURIComponent(s.reference)}">View shipment</a>
           ${t.links?.marineTraffic ? ` · <a href="${esc(t.links.marineTraffic)}" target="_blank" rel="noopener">MarineTraffic</a>` : ''}</div>`)
+        .bindTooltip(esc(t.vessel?.name || s.reference), { direction: 'top', offset: [0, -14] })
         .addTo(map);
       bounds.push([p.lat, p.lon]);
     }
     return bounds;
+  }
+
+  // Room around the route for port names; less on phones so the route isn't tiny.
+  function detailPadding(map) {
+    return map.getContainer().clientWidth < 600 ? { paddingTopLeft: [24, 44], paddingBottomRight: [24, 30] } : { paddingTopLeft: [70, 40], paddingBottomRight: [70, 50] };
+  }
+
+  // Moves a port name to the other side (or above) if it would be cut off at the edge of the map.
+  function fitLabels(map) {
+    const box = map.getContainer().getBoundingClientRect();
+    map.eachLayer((layer) => {
+      if (!layer.portLabel || !layer.getTooltip()) return;
+      const fits = () => {
+        const r = layer.getTooltip().getElement()?.getBoundingClientRect();
+        return !r || (r.left >= box.left + 4 && r.right <= box.right - 4);
+      };
+      if (fits()) return;
+      const { name, side } = layer.portLabel;
+      for (const dir of ['top', side === 'left' ? 'right' : 'left']) {
+        layer.unbindTooltip();
+        layer.bindTooltip(name, { permanent: true, direction: dir, offset: dir === 'top' ? [0, -9] : [dir === 'left' ? -8 : 8, 0], className: 'port-label' });
+        if (fits()) return;
+      }
+    });
+  }
+
+  function addLegend(map) {
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = () => {
+      const d = L.DomUtil.create('div', 'map-legend');
+      d.innerHTML = `
+        <span><i class="lg-line" style="background:${MAP_COLORS.transit}"></i>Sailed</span>
+        <span><i class="lg-dash" style="color:${MAP_COLORS.transit}"></i>To go</span>
+        <span><i class="lg-dot" style="background:#0f2b46"></i>Origin</span>
+        <span><i class="lg-ring" style="border-color:${MAP_COLORS.transit}"></i>Destination</span>`;
+      return d;
+    };
+    legend.addTo(map);
   }
 
   // ---------------------------------------------------------------- dashboard
@@ -306,6 +457,7 @@
     if (map) {
       const bounds = [];
       items.filter(({ t }) => !isDone(t)).forEach(({ s, t }) => bounds.push(...drawShipment(map, s, t)));
+      addLegend(map);
       if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 5, animate: false });
       else if (bounds.length === 1) map.setView(bounds[0], 4, { animate: false });
     }
@@ -438,12 +590,14 @@
     const map = makeMap(document.getElementById('map'));
     if (map) {
       const bounds = drawShipment(map, s, t, true);
-      if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6, animate: false });
+      addLegend(map);
+      if (bounds.length) map.fitBounds(bounds, { ...detailPadding(map), maxZoom: 6, animate: false });
       // Re-measure once the shipment view is laid out, so the map isn't clipped after a route change.
       requestAnimationFrame(() => {
         if (!maps.includes(map)) return;
         map.invalidateSize({ animate: false });
-        if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 6, animate: false });
+        if (bounds.length) map.fitBounds(bounds, { ...detailPadding(map), maxZoom: 6, animate: false });
+        fitLabels(map);
       });
     }
 

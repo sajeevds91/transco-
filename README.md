@@ -66,4 +66,6 @@ GitHub Pages only serves web pages, so this version has **no logins and no autom
 | `assets/tracking.js` | Tracking: demo journeys, live feed, carrier and MarineTraffic links, container checks |
 | `assets/styles.css` | Styles |
 | `proxy/` | Cloudflare Worker for live CMA CGM tracking, with setup guide and tests |
+| `assets/world-50m.json` | World map outlines (Natural Earth, public domain, via world-atlas, ISC licence) |
 | `vendor/leaflet/` | Leaflet map library (BSD-2 licence) |
+| `vendor/topojson-client/` | Reads the map outlines (ISC licence) |
