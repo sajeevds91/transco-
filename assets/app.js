@@ -137,7 +137,7 @@
     </div></header>
     <main id="view"></main>
     <div class="footer-note">
-      ${T.liveFeed() ? '' : 'Showing <b>demo tracking data</b>. '}Vessel positions are estimated from the voyage schedule; use the MarineTraffic link for the live AIS position.
+      ${T.liveFeed() ? '' : T.liveCarriers().length ? `<b>${esc(T.liveCarriers().join(', '))}</b> shipments show live tracking data; other shipping lines show <b>demo tracking data</b>. ` : 'Showing <b>demo tracking data</b>. '}Use the MarineTraffic link for the vessel's live AIS position.
       Your shipment list is saved in this browser only.
       ${CFG.supportEmail ? ` · Questions? <a href="mailto:${esc(CFG.supportEmail)}">${esc(CFG.supportEmail)}</a>` : ''}
     </div>`;
@@ -365,7 +365,7 @@
       <div class="page-head">
         <div>
           <h1>${esc(s.label || s.reference)} ${pill(t)}</h1>
-          <p><span class="mono">${esc(s.reference)}</span> · ${esc(t.carrierName)} · ${s.refType === 'container' ? 'Container' : 'Booking / B/L'}</p>
+          <p><span class="mono">${esc(s.reference)}</span> · ${esc(t.carrierName)} · ${s.refType === 'container' ? 'Container' : 'Booking / B/L'} · ${t.source === 'demo' ? '<span class="muted">Demo data</span>' : `<b style="color:var(--green)">Live data</b>`}</p>
         </div>
         <div class="actions">
           <button class="btn" id="refresh">${ICON.refresh} Refresh</button>
@@ -402,7 +402,7 @@
                 <dt>Speed / course</dt><dd>${p.speed != null ? `${p.speed.toFixed(1)} kn` : '—'} / ${p.course != null ? `${Math.round(p.course)}°` : '—'}</dd>
                 ${p.navStatus ? `<dt>Status</dt><dd>${esc(p.navStatus)}</dd>` : ''}` : ''}
             </dl>` : '<p class="muted">No vessel assigned yet.</p>'}
-            <div class="notice">${ICON.info}<div>The position shown is estimated from the voyage schedule. Open MarineTraffic for the vessel's live AIS position.${saved && !(t.vessel?.imo || t.vessel?.mmsi) ? ' Add the vessel IMO or MMSI under <b>Edit details</b> to link the exact ship.' : ''}</div></div>
+            <div class="notice">${ICON.info}<div>${p?.lat != null ? 'The position shown is estimated from the voyage schedule.' : 'The ship\'s current position isn\'t part of the tracking data.'} Open MarineTraffic for the vessel's live AIS position.${saved && !(t.vessel?.imo || t.vessel?.mmsi) ? ' Add the vessel IMO or MMSI under <b>Edit details</b> to link the exact ship.' : ''}</div></div>
             <div class="links">
               ${t.links?.marineTraffic ? `<a class="btn small" href="${esc(t.links.marineTraffic)}" target="_blank" rel="noopener">${ICON.ext} View vessel on MarineTraffic</a>` : ''}
               ${t.links?.transco ? `<a class="btn small" href="${esc(t.links.transco)}" target="_blank" rel="noopener">${ICON.ext} Transco track &amp; trace</a>` : ''}
@@ -429,7 +429,7 @@
                 <div class="t-title">${esc(e.description)}${e.actual ? '' : '<span class="est">Planned</span>'}</div>
                 <div class="t-meta">${esc(e.location)} · ${fmtDateTime(e.time)}${e.vessel && !e.description.includes(e.vessel) ? ` · ${esc(e.vessel)}` : ''}</div>
               </li>`).join('')}</ol>` : '<p class="muted">No tracking events yet.</p>'}
-            <div class="muted" style="font-size:12.5px">Checked ${ago(t.fetchedAt)}${t.source === 'demo' ? ' · demo data' : ''}</div>
+            <div class="muted" style="font-size:12.5px">Checked ${ago(t.fetchedAt)} · ${t.source === 'demo' ? 'demo data' : `live data from ${esc(t.sourceName || 'tracking feed')}`}</div>
           </div>
           ${saved ? `<div class="card card-pad"><h3>Remove from my list</h3><p class="muted" style="margin:0 0 12px;font-size:14px">Removes it from the list on this device.</p><button class="btn danger" id="remove">Remove</button></div>` : ''}
         </div>

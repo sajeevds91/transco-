@@ -1,0 +1,7 @@
+# Only needed if you deploy with the command line (npx wrangler deploy).
+name = "transco-cma-cgm"
+main = "cma-cgm-worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://sajeevds91.github.io"

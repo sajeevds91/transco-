@@ -29,6 +29,9 @@ Everything in this repository is public, so **never put passwords or secret API 
 
 ## Tracking data
 
+**Live CMA CGM tracking** can be switched on with a free CMA CGM API key and a free Cloudflare Worker: see [`proxy/README.md`](proxy/README.md). CMA CGM shipments then show live data, while other shipping lines show demo data, and each shipment page says which it is.
+
+
 Until a live feed is set in `config.js`, the site shows **demo tracking data**: realistic journeys through Colombo that move forward in real time, so the site can be tried out.
 
 For live data, `trackingApiUrl` must point to a feed that a web browser can call directly (it must allow cross-origin/CORS requests) and that does not need a secret key. `{ref}` and `{carrier}` in the URL are filled in. It should return JSON like:
@@ -62,4 +65,5 @@ GitHub Pages only serves web pages, so this version has **no logins and no autom
 | `assets/app.js` | The website |
 | `assets/tracking.js` | Tracking: demo journeys, live feed, carrier and MarineTraffic links, container checks |
 | `assets/styles.css` | Styles |
+| `proxy/` | Cloudflare Worker for live CMA CGM tracking, with setup guide and tests |
 | `vendor/leaflet/` | Leaflet map library (BSD-2 licence) |

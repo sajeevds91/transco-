@@ -366,14 +366,26 @@ function normalize(raw, reference) {
   };
 }
 
-async function feedTrack({ reference, carrier }) {
-  const url = window.TRANSCO_CONFIG.trackingApiUrl
+function feedUrlFor(carrier) {
+  const cfg = window.TRANSCO_CONFIG || {};
+  return (cfg.liveTracking && cfg.liveTracking[carrier]) || cfg.trackingApiUrl || '';
+}
+
+async function feedTrack({ reference, carrier }, template) {
+  const url = template
     .replace('{ref}', encodeURIComponent(reference)).replace('{reference}', encodeURIComponent(reference))
     .replace('{carrier}', encodeURIComponent(carrier || ''));
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (res.status === 404) throw new Error('This reference is not in the tracking system yet');
-  if (!res.ok) throw new Error(`Tracking service returned HTTP ${res.status}`);
-  return normalize(await res.json(), reference);
+  let res;
+  try {
+    res = await fetch(url, { headers: { Accept: 'application/json' } });
+  } catch {
+    throw new Error('The live tracking service could not be reached. Please try again shortly.');
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || (res.status === 404 ? 'This reference is not in the tracking system yet' : `Tracking service returned HTTP ${res.status}`));
+  const snap = normalize(body, reference);
+  snap.sourceName = body.source || 'live feed';
+  return snap;
 }
 
 // ---------------------------------------------------------------- public API
@@ -384,10 +396,11 @@ const STATUS_LABELS = {
 };
 
 async function getTracking(s) {
-  const live = Boolean((window.TRANSCO_CONFIG || {}).trackingApiUrl);
+  const feed = feedUrlFor(s.carrier);
+  const live = Boolean(feed);
   let snap;
   try {
-    snap = live ? await feedTrack(s) : demoTrack({ reference: s.reference, createdAt: s.addedAt });
+    snap = live ? await feedTrack(s, feed) : demoTrack({ reference: s.reference, createdAt: s.addedAt });
   } catch (err) {
     snap = { reference: s.reference, source: live ? 'api' : 'demo', status: 'UNKNOWN', error: err.message, events: [], lastEvent: null, progress: 0, fetchedAt: new Date().toISOString() };
   }
@@ -408,6 +421,9 @@ window.TranscoTracking = {
   carrierName: (code) => byCode.get(code)?.name || 'Other shipping line',
   isKnownCarrier: (code) => byCode.has(code),
   normalizeReference, isContainerNumber, containerCheckDigitValid, detectCarrier, detectRefType,
-  getTracking, liveFeed: () => Boolean((window.TRANSCO_CONFIG || {}).trackingApiUrl),
+  getTracking,
+  liveFeed: () => Boolean((window.TRANSCO_CONFIG || {}).trackingApiUrl),
+  // Names of shipping lines with their own live feed, e.g. ['CMA CGM']
+  liveCarriers: () => Object.entries((window.TRANSCO_CONFIG || {}).liveTracking || {}).filter(([, url]) => url).map(([code]) => byCode.get(code)?.name || code),
 };
 })();

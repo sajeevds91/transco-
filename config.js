@@ -16,4 +16,11 @@ window.TRANSCO_CONFIG = {
   // requests and must not need a secret key. {ref} and {carrier} are filled in. Leave empty for demo data.
   // The expected response format is described in README.md.
   trackingApiUrl: '',
+
+  // Live tracking for individual shipping lines, through a proxy that keeps the API key secret
+  // (see proxy/README.md). Shipments with these lines use live data; all others use demo data.
+  // CMDU = CMA CGM, e.g. 'https://transco-cma-cgm.yourname.workers.dev/?ref={ref}'
+  liveTracking: {
+    CMDU: '',
+  },
 };

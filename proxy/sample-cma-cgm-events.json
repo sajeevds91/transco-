@@ -1,0 +1,16 @@
+[
+  { "eventType": "EQUIPMENT", "eventClassifierCode": "ACT", "eventDateTime": "2026-10-20T08:00:00Z", "equipmentEventTypeCode": "GTOT", "emptyIndicatorCode": "EMPTY", "equipmentReference": "CMAU5622104",
+    "eventLocation": { "locationName": "Colombo", "UNLocationCode": "LKCMB" } },
+  { "eventType": "EQUIPMENT", "eventClassifierCode": "ACT", "eventDateTime": "2026-10-23T14:30:00Z", "equipmentEventTypeCode": "GTIN", "emptyIndicatorCode": "LADEN", "equipmentReference": "CMAU5622104",
+    "eventLocation": { "locationName": "Colombo", "UNLocationCode": "LKCMB" } },
+  { "eventType": "EQUIPMENT", "eventClassifierCode": "ACT", "eventDateTime": "2026-10-25T03:10:00Z", "equipmentEventTypeCode": "LOAD", "emptyIndicatorCode": "LADEN", "equipmentReference": "CMAU5622104",
+    "transportCall": { "UNLocationCode": "LKCMB", "location": { "locationName": "Colombo", "UNLocationCode": "LKCMB" }, "modeOfTransport": "VESSEL", "exportVoyageNumber": "0FMQXW1MA", "vessel": { "vesselIMONumber": "9839131", "vesselName": "CMA CGM TEST VESSEL" } } },
+  { "eventType": "TRANSPORT", "eventClassifierCode": "ACT", "eventDateTime": "2026-10-25T18:00:00Z", "transportEventTypeCode": "DEPA",
+    "transportCall": { "UNLocationCode": "LKCMB", "location": { "locationName": "Colombo", "UNLocationCode": "LKCMB" }, "modeOfTransport": "VESSEL", "exportVoyageNumber": "0FMQXW1MA", "vessel": { "vesselIMONumber": "9839131", "vesselName": "CMA CGM TEST VESSEL" } } },
+  { "eventType": "TRANSPORT", "eventClassifierCode": "PLN", "eventDateTime": "2026-11-10T06:00:00Z", "transportEventTypeCode": "ARRI",
+    "transportCall": { "UNLocationCode": "NLRTM", "location": { "locationName": "Rotterdam", "UNLocationCode": "NLRTM" }, "modeOfTransport": "VESSEL", "exportVoyageNumber": "0FMQXW1MA", "vessel": { "vesselIMONumber": "9839131", "vesselName": "CMA CGM TEST VESSEL" } } },
+  { "eventType": "TRANSPORT", "eventClassifierCode": "EST", "eventDateTime": "2026-11-11T09:00:00Z", "transportEventTypeCode": "ARRI",
+    "transportCall": { "UNLocationCode": "NLRTM", "location": { "locationName": "Rotterdam", "UNLocationCode": "NLRTM" }, "modeOfTransport": "VESSEL", "exportVoyageNumber": "0FMQXW1MA", "vessel": { "vesselIMONumber": "9839131", "vesselName": "CMA CGM TEST VESSEL" } } },
+  { "eventType": "EQUIPMENT", "eventClassifierCode": "PLN", "eventDateTime": "2026-11-11T20:00:00Z", "equipmentEventTypeCode": "DISC", "emptyIndicatorCode": "LADEN", "equipmentReference": "CMAU5622104",
+    "transportCall": { "UNLocationCode": "NLRTM", "location": { "locationName": "Rotterdam", "UNLocationCode": "NLRTM" }, "modeOfTransport": "VESSEL", "exportVoyageNumber": "0FMQXW1MA", "vessel": { "vesselIMONumber": "9839131", "vesselName": "CMA CGM TEST VESSEL" } } }
+]
